@@ -906,33 +906,22 @@ async function checkAccountCredits(cookieRecord) {
   let tab = null;
   try {
     await applyCookieRecord(cookieRecord);
-    tab = await chrome.tabs.create({ url: `${QUIVER_ORIGIN}/creations`, active: false });
-    await waitForHiddenTabComplete(tab.id, 20000);
-
-    // SPA 的用户数据缓存在 localStorage，需清掉再强制刷新
-    // 否则隐藏 tab 会显示当前登录账号的缓存数据
-    await chrome.scripting.executeScript({
+    tab = await chrome.tabs.create({ url: `${QUIVER_ORIGIN}/`, active: false });
+    await waitForHiddenTabComplete(tab.id, 15000);
+    const result = await chrome.scripting.executeScript({
       target: { tabId: tab.id },
       world: "MAIN",
-      func: () => {
-        // 清除所有 SPA 用户相关缓存
-        try { localStorage.clear(); } catch (_) {}
-        try { sessionStorage.clear(); } catch (_) {}
+      func: async () => {
+        try {
+          const r = await fetch('/api/billing/usage', { credentials: 'include' });
+          if (!r.ok) return null;
+          return await r.json();
+        } catch (_) { return null; }
       },
     });
-
-    // 强制刷新，让 SPA 用新 cookie 重新请求数据
-    await chrome.tabs.reload(tab.id, { bypassCache: true });
-    await waitForHiddenTabComplete(tab.id, 20000);
-
-    // SPA 渲染需要时间，重试读取，每次间隔 2 秒，最多 5 次
-    let usage = null;
-    for (let i = 0; i < 5; i++) {
-      await sleep(2000);
-      usage = await readUsageSnapshotInTab(tab.id);
-      if (usage) break;
-    }
-    return usage;
+    const weekly = result?.[0]?.result?.data?.weekly;
+    if (!weekly) return null;
+    return { used: weekly.used, total: weekly.limit, raw: `${weekly.used}/${weekly.limit}` };
   } finally {
     if (tab?.id) { try { await chrome.tabs.remove(tab.id); } catch (_) {} }
     if (original?.value) { await applyCookieRecord(original); }
