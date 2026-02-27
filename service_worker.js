@@ -909,7 +909,23 @@ async function checkAccountCredits(cookieRecord) {
     tab = await chrome.tabs.create({ url: `${QUIVER_ORIGIN}/creations`, active: false });
     await waitForHiddenTabComplete(tab.id, 20000);
 
-    // SPA 需要时间渲染积分组件，重试读取，每次间隔 2 秒，最多 5 次
+    // SPA 的用户数据缓存在 localStorage，需清掉再强制刷新
+    // 否则隐藏 tab 会显示当前登录账号的缓存数据
+    await chrome.scripting.executeScript({
+      target: { tabId: tab.id },
+      world: "MAIN",
+      func: () => {
+        // 清除所有 SPA 用户相关缓存
+        try { localStorage.clear(); } catch (_) {}
+        try { sessionStorage.clear(); } catch (_) {}
+      },
+    });
+
+    // 强制刷新，让 SPA 用新 cookie 重新请求数据
+    await chrome.tabs.reload(tab.id, { bypassCache: true });
+    await waitForHiddenTabComplete(tab.id, 20000);
+
+    // SPA 渲染需要时间，重试读取，每次间隔 2 秒，最多 5 次
     let usage = null;
     for (let i = 0; i < 5; i++) {
       await sleep(2000);
