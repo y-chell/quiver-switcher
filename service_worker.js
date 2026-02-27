@@ -26,6 +26,13 @@ let state = {
   lastError: null,
 };
 
+let _initialized = false;
+async function ensureInitialized() {
+  if (_initialized) return;
+  _initialized = true;
+  await loadState();
+}
+
 function randomText(length = 12, alphabet = "abcdefghijklmnopqrstuvwxyz0123456789") {
   let out = "";
   for (let i = 0; i < length; i++) {
@@ -1105,9 +1112,15 @@ chrome.runtime.onStartup.addListener(async () => {
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (!message || typeof message !== "object") return;
+
+  // service worker 被 Chrome 唤醒时不触发 onStartup，需在此处确保状态已加载
+  ensureInitialized();
+
   if (message.type === "GET_COOKIE_HISTORY") {
-    sendResponse({ ok: true, items: getCookieHistorySnapshot() });
-    return;
+    ensureInitialized().then(() => {
+      sendResponse({ ok: true, items: getCookieHistorySnapshot() });
+    });
+    return true;
   }
   if (message.type === "EXPORT_CURRENT_COOKIE") {
     (async () => {
@@ -1166,13 +1179,13 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
   if (message.type === "GET_STATE") {
-    if (!state.filling && state.queue.length < QUEUE_TARGET) {
-      ensureQueue().catch(() => {
-        void 0;
-      });
-    }
-    sendResponse(getStateSnapshot());
-    return;
+    ensureInitialized().then(() => {
+      if (!state.filling && state.queue.length < QUEUE_TARGET) {
+        ensureQueue().catch(() => { void 0; });
+      }
+      sendResponse(getStateSnapshot());
+    });
+    return true;
   }
   if (message.type === "REQUEST_SWITCH") {
     const tabId = sender?.tab?.id;
