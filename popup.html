@@ -1,0 +1,402 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Quiver Switcher</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #0a0f1e;
+      --bg2: #111827;
+      --bg3: #1e2a3a;
+      --border: rgba(99,130,180,0.18);
+      --text: #e2e8f0;
+      --muted: #7a90b0;
+      --accent: #3b82f6;
+      --accent2: #0ea5e9;
+      --success: #22c55e;
+      --warn: #f59e0b;
+      --error: #f87171;
+      --radius: 10px;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      width: 380px;
+      font-family: "Inter", "Segoe UI", system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      font-size: 13px;
+    }
+
+    /* ── Header ── */
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 14px 0;
+    }
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-weight: 700;
+      font-size: 14px;
+    }
+    .logo img { width: 22px; height: 22px; border-radius: 6px; }
+    .version-badge {
+      font-size: 10px;
+      color: var(--muted);
+      background: var(--bg3);
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      padding: 2px 7px;
+    }
+
+    /* ── Tabs ── */
+    .tabs {
+      display: flex;
+      padding: 10px 14px 0;
+      gap: 2px;
+    }
+    .tab-btn {
+      flex: 1;
+      padding: 7px 0;
+      background: transparent;
+      border: none;
+      border-bottom: 2px solid transparent;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: color .15s, border-color .15s;
+      font-family: inherit;
+    }
+    .tab-btn.active {
+      color: var(--accent);
+      border-bottom-color: var(--accent);
+    }
+    .tab-btn:hover:not(.active) { color: var(--text); }
+
+    /* ── Content ── */
+    .tab-panel { display: none; padding: 12px 14px 14px; }
+    .tab-panel.active { display: grid; gap: 10px; }
+
+    /* ── Cards ── */
+    .card {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 11px 12px;
+    }
+    .card-title {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: .04em;
+      margin-bottom: 10px;
+    }
+
+    /* ── Status panel ── */
+    .session-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 9px 11px;
+      background: var(--bg3);
+      border-radius: 8px;
+      border: 1px solid var(--border);
+    }
+    .dot {
+      width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0;
+      background: var(--muted);
+    }
+    .dot.online { background: var(--success); box-shadow: 0 0 6px var(--success); }
+    .dot.busy   { background: var(--warn);    box-shadow: 0 0 6px var(--warn); }
+    .dot.error  { background: var(--error);   box-shadow: 0 0 6px var(--error); }
+    .session-email { font-size: 12px; color: var(--text); flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .session-label { font-size: 11px; color: var(--muted); }
+
+    /* Queue bar */
+    .queue-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+    .queue-label { font-size: 12px; color: var(--muted); white-space: nowrap; }
+    .queue-bar {
+      flex: 1;
+      height: 5px;
+      background: var(--bg3);
+      border-radius: 999px;
+      overflow: hidden;
+    }
+    .queue-fill {
+      height: 100%;
+      background: linear-gradient(90deg, var(--accent), var(--accent2));
+      border-radius: 999px;
+      transition: width .4s ease;
+    }
+    .queue-count { font-size: 12px; color: var(--text); font-weight: 600; white-space: nowrap; }
+
+    /* Filling indicator */
+    .filling-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11px;
+      color: var(--muted);
+    }
+    .spinner {
+      width: 10px; height: 10px;
+      border: 1.5px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin .7s linear infinite;
+      flex-shrink: 0;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Switch button */
+    .switch-btn {
+      width: 100%;
+      padding: 11px;
+      background: linear-gradient(90deg, #1d4ed8, #0284c7);
+      border: none;
+      border-radius: 8px;
+      color: #fff;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: filter .15s, opacity .15s;
+      font-family: inherit;
+    }
+    .switch-btn:hover:not(:disabled) { filter: brightness(1.1); }
+    .switch-btn:disabled { opacity: .55; cursor: not-allowed; }
+
+    /* Status text */
+    .status-text {
+      font-size: 11px;
+      color: var(--muted);
+      min-height: 16px;
+      text-align: center;
+    }
+    .status-text.err { color: var(--error); }
+    .status-text.ok  { color: var(--success); }
+
+    /* ── History tab ── */
+    .history-list { display: grid; gap: 8px; }
+    .h-item {
+      background: var(--bg3);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 9px 11px;
+      display: grid;
+      gap: 6px;
+    }
+    .h-item:hover { border-color: rgba(99,130,180,.35); }
+    .h-top {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .h-email {
+      font-size: 12px;
+      color: var(--text);
+      flex: 1;
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .h-time { font-size: 10px; color: var(--muted); white-space: nowrap; }
+    .h-credits { font-size: 11px; color: var(--muted); }
+    .h-credits.full    { color: var(--success); }
+    .h-credits.low     { color: var(--warn); }
+    .h-credits.empty   { color: var(--error); }
+    .h-credits.checking { color: var(--muted); font-style: italic; }
+    .h-note-input {
+      width: 100%;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text);
+      font-size: 11px;
+      padding: 4px 8px;
+      font-family: inherit;
+    }
+    .h-note-input:focus { outline: none; border-color: var(--accent); }
+    .h-actions {
+      display: flex;
+      gap: 5px;
+      flex-wrap: wrap;
+    }
+    .btn-sm {
+      padding: 4px 9px;
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text);
+      font-size: 11px;
+      cursor: pointer;
+      font-family: inherit;
+      transition: background .12s;
+    }
+    .btn-sm:hover { background: #2a3a50; }
+    .btn-sm.danger { color: var(--error); }
+    .btn-sm.danger:hover { background: rgba(248,113,113,.1); border-color: rgba(248,113,113,.4); }
+    .btn-sm.primary { background: linear-gradient(90deg,#1d4ed8,#0284c7); border: none; color: #fff; }
+    .btn-sm.primary:hover { filter: brightness(1.1); }
+    .empty-hint { font-size: 12px; color: var(--muted); text-align: center; padding: 20px 0; }
+
+    /* ── Manage tab ── */
+    .field-label { font-size: 11px; color: var(--muted); margin-bottom: 5px; }
+    textarea, input[type="text"] {
+      width: 100%;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 7px;
+      color: var(--text);
+      padding: 8px 10px;
+      font-size: 12px;
+      font-family: inherit;
+      resize: vertical;
+    }
+    textarea { min-height: 72px; }
+    input[type="text"] { height: 34px; }
+    textarea:focus, input:focus { outline: none; border-color: var(--accent); }
+    .row { display: flex; gap: 8px; align-items: center; }
+    .btn {
+      padding: 7px 12px;
+      background: var(--bg3);
+      border: 1px solid var(--border);
+      border-radius: 7px;
+      color: var(--text);
+      font-size: 12px;
+      cursor: pointer;
+      font-family: inherit;
+      white-space: nowrap;
+      transition: background .12s;
+    }
+    .btn:hover { background: #2a3a50; }
+    .btn.primary { background: linear-gradient(90deg,#1d4ed8,#0284c7); border: none; color: #fff; }
+    .btn.primary:hover { filter: brightness(1.1); }
+
+    /* Update section */
+    .update-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+    .update-status { font-size: 11px; color: var(--muted); }
+    .update-status.new { color: var(--warn); }
+    .divider { border: none; border-top: 1px solid var(--border); margin: 2px 0; }
+  </style>
+</head>
+<body>
+
+<div class="header">
+  <div class="logo">
+    <img src="icons/icon-32.png" alt="" />
+    Quiver Switcher
+  </div>
+  <span id="versionBadge" class="version-badge">v-</span>
+</div>
+
+<div class="tabs">
+  <button class="tab-btn active" data-tab="status">状态</button>
+  <button class="tab-btn" data-tab="history">账号</button>
+  <button class="tab-btn" data-tab="manage">管理</button>
+</div>
+
+<!-- ── 状态 Tab ── -->
+<div id="tab-status" class="tab-panel active">
+
+  <div class="card">
+    <div class="card-title">当前会话</div>
+    <div class="session-row">
+      <span class="dot" id="sessionDot"></span>
+      <span class="session-email" id="sessionEmail">加载中...</span>
+      <span class="session-label" id="sessionLabel"></span>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">账号队列</div>
+    <div class="queue-row">
+      <span class="queue-label">就绪账号</span>
+      <div class="queue-bar"><div class="queue-fill" id="queueFill" style="width:0%"></div></div>
+      <span class="queue-count" id="queueCount">0 / 2</span>
+    </div>
+    <div style="height:8px"></div>
+    <div class="filling-row" id="fillingRow" style="display:none">
+      <span class="spinner"></span>
+      <span id="fillingText">正在后台准备账号...</span>
+    </div>
+  </div>
+
+  <button class="switch-btn" id="switchBtn">一键切换账号</button>
+  <div class="status-text" id="switchStatus"></div>
+
+</div>
+
+<!-- ── 账号 Tab ── -->
+<div id="tab-history" class="tab-panel">
+  <div class="row" style="justify-content:space-between;align-items:center">
+    <span style="font-size:12px;color:var(--muted)" id="historyCount">0 个账号</span>
+    <div class="row" style="gap:6px">
+      <button class="btn" id="batchCheckBtn">全部检测</button>
+      <button class="btn" id="refreshHistoryBtn">刷新</button>
+    </div>
+  </div>
+  <div id="batchStatus" class="status-text" style="text-align:left"></div>
+  <div id="historyList" class="history-list"></div>
+</div>
+
+<!-- ── 管理 Tab ── -->
+<div id="tab-manage" class="tab-panel">
+
+  <div class="card">
+    <div class="card-title">导出当前 Cookie</div>
+    <div class="row">
+      <button class="btn primary" id="exportBtn">导出并缓存</button>
+      <button class="btn" id="copyExportBtn">复制</button>
+    </div>
+    <div style="height:8px"></div>
+    <textarea id="exportOutput" readonly placeholder="导出的 JSON 会显示在这里"></textarea>
+  </div>
+
+  <div class="card">
+    <div class="card-title">导入 Cookie</div>
+    <div class="field-label">备注（可选）</div>
+    <input type="text" id="importEmail" placeholder="账号邮箱或自定义备注" />
+    <div style="height:8px"></div>
+    <div class="field-label">Cookie JSON 或纯 Value</div>
+    <textarea id="importInput" placeholder="粘贴 Cookie JSON 或仅粘贴 value"></textarea>
+    <div style="height:8px"></div>
+    <button class="btn primary" id="importBtn" style="width:100%">导入并应用</button>
+    <div style="height:6px"></div>
+    <div class="status-text" id="manageStatus"></div>
+  </div>
+
+  <hr class="divider" />
+
+  <div class="card">
+    <div class="card-title">版本更新</div>
+    <div class="update-row">
+      <span class="update-status" id="updateStatus">未检查</span>
+      <div class="row" style="gap:6px">
+        <button class="btn" id="checkUpdateBtn">检查</button>
+        <button class="btn primary" id="openUpdateBtn" style="display:none">前往更新</button>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script src="popup.js"></script>
+</body>
+</html>
