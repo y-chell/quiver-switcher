@@ -908,7 +908,14 @@ async function checkAccountCredits(cookieRecord) {
     await applyCookieRecord(cookieRecord);
     tab = await chrome.tabs.create({ url: `${QUIVER_ORIGIN}/creations`, active: false });
     await waitForHiddenTabComplete(tab.id, 20000);
-    const usage = await readUsageSnapshotInTab(tab.id);
+
+    // SPA 需要时间渲染积分组件，重试读取，每次间隔 2 秒，最多 5 次
+    let usage = null;
+    for (let i = 0; i < 5; i++) {
+      await sleep(2000);
+      usage = await readUsageSnapshotInTab(tab.id);
+      if (usage) break;
+    }
     return usage;
   } finally {
     if (tab?.id) { try { await chrome.tabs.remove(tab.id); } catch (_) {} }
