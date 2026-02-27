@@ -429,6 +429,7 @@ async function restoreCookie(cookieRecord) {
 
 async function applyCookieRecord(cookieRecord) {
   if (!cookieRecord || !cookieRecord.value) return false;
+  await chrome.cookies.remove({ url: QUIVER_ORIGIN, name: SESSION_COOKIE }).catch(() => {});
   await chrome.cookies.set(cookieToPayload(cookieRecord, QUIVER_ORIGIN));
   return true;
 }
